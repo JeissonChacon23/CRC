@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRC · Simulador de redundancia cíclica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1B22;
+  --panel:#14262F;
+  --panel-2:#1A323D;
+  --rule:#26454F;
+  --rule-soft:#1E3844;
+  --ink:#E2EDF1;
+  --muted:#8CA8B3;
+  --dim:#5C7885;
+  --data:#F0B429;   /* bits del mensaje  M(x) */
+  --crc:#3FD0C9;    /* bits de redundancia R(x) */
+  --err:#FF6B63;    /* bits alterados en el canal */
+  --ok:#79D68A;
+  --focus:#7FD5FF;
+  --cell:1.45rem;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;
+  line-height:1.55;
+}
+h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-weight:700;letter-spacing:.005em;margin:0}
+sup{font-size:.62em;line-height:0}
+a{color:var(--focus)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ---------- Encabezado: la trama transmitida en vivo ---------- */
+.hero{
+  border-bottom:1px solid var(--rule);
+  padding:2.2rem 1.5rem 1.6rem;
+  background:
+    radial-gradient(120% 160% at 12% 0%, #17303C 0%, var(--bg) 62%);
+}
+.hero-inner{max-width:1220px;margin:0 auto}
+.hero h1{
+  font-size:clamp(1.5rem,3.6vw,2.1rem);
+  line-height:1.1;
+}
+.hero .sub{color:var(--muted);font-size:.92rem;margin-top:.35rem;max-width:62ch}
+.frame-strip{
+  margin-top:1.5rem;
+  display:flex;flex-wrap:wrap;gap:3px;
+  align-items:flex-end;
+}
+.frame-strip .bit{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(.95rem,2.1vw,1.5rem);
+  font-weight:500;
+  width:1.35em;height:1.9em;
+  display:grid;place-items:center;
+  border-radius:3px;
+  background:var(--panel-2);
+  color:var(--dim);
+  border-bottom:3px solid transparent;
+}
+.frame-strip .bit.d{color:var(--data);border-bottom-color:rgba(240,180,41,.55)}
+.frame-strip .bit.c{color:var(--crc);border-bottom-color:rgba(63,208,201,.6)}
+.legend{display:flex;flex-wrap:wrap;gap:1.2rem;margin-top:.9rem;font-size:.8rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:.42rem}
+.swatch{width:.65rem;height:.65rem;border-radius:2px;display:inline-block}
+
+/* ---------- Estructura ---------- */
+.wrap{max-width:1220px;margin:0 auto;padding:1.5rem;display:grid;gap:1.5rem;grid-template-columns:300px minmax(0,1fr)}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;padding:1rem}}
+
+aside{align-self:start;position:sticky;top:1rem}
+@media (max-width:900px){aside{position:static}}
+
+.box{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:1.1rem}
+.box + .box{margin-top:1rem}
+.box h2{font-size:.95rem;color:var(--ink);margin-bottom:.85rem}
+
+label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:.35rem}
+input[type=text],select,textarea{
+  width:100%;background:#0B171D;border:1px solid var(--rule);color:var(--ink);
+  border-radius:6px;padding:.55rem .6rem;font-size:.9rem;
+  font-family:"IBM Plex Mono",monospace;
+}
+input[type=text]:hover,select:hover{border-color:var(--dim)}
+select{font-family:"IBM Plex Sans",sans-serif}
+.field + .field{margin-top:.9rem}
+.hint{font-size:.74rem;color:var(--dim);margin-top:.3rem}
+.warn{font-size:.78rem;color:var(--err);margin-top:.45rem;display:none}
+.warn.on{display:block}
+
+.seg{display:flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;margin-bottom:.5rem}
+.seg button{flex:1;background:transparent;border:0;color:var(--muted);padding:.4rem;font-size:.78rem;cursor:pointer;font-family:inherit}
+.seg button[aria-pressed=true]{background:var(--panel-2);color:var(--ink)}
+
+button.act{
+  background:var(--panel-2);border:1px solid var(--rule);color:var(--ink);
+  border-radius:6px;padding:.45rem .8rem;font-size:.82rem;cursor:pointer;font-family:inherit;
+}
+button.act:hover{border-color:var(--dim)}
+button.act:disabled{opacity:.4;cursor:default}
+button.act.primary{background:#1F4652;border-color:#2F6172}
+.row{display:flex;gap:.5rem;flex-wrap:wrap}
+
+/* ---------- Pestañas ---------- */
+.tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--rule);margin-bottom:1.2rem;overflow-x:auto}
+.tabs button{
+  background:transparent;border:0;border-bottom:2px solid transparent;
+  color:var(--muted);padding:.6rem .85rem;font-size:.9rem;cursor:pointer;
+  font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;white-space:nowrap;
+}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--data)}
+.panel[hidden]{display:none}
+
+/* ---------- Resumen algebraico ---------- */
+.algebra{display:grid;gap:.05rem;margin-bottom:1.2rem}
+.algebra .line{
+  display:grid;grid-template-columns:9.5rem minmax(0,1fr);gap:.9rem;
+  padding:.5rem .7rem;border-left:2px solid var(--rule-soft);
+}
+.algebra .line:hover{border-left-color:var(--dim)}
+.algebra .k{color:var(--muted);font-size:.8rem}
+.algebra .v{font-family:"IBM Plex Mono",monospace;font-size:.88rem;word-break:break-all}
+.algebra .v.data{color:var(--data)}
+.algebra .v.crc{color:var(--crc)}
+
+/* ---------- Reproductor de pasos ---------- */
+.player{
+  display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:.55rem .7rem;
+}
+.player .count{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--muted);margin-left:auto}
+.track{height:3px;background:var(--rule-soft);border-radius:2px;margin:.7rem 0 1rem;overflow:hidden}
+.track i{display:block;height:100%;background:var(--data);width:0}
+@media (prefers-reduced-motion:no-preference){.track i{transition:width .18s ease}}
+
+/* ---------- Rejilla de la división ---------- */
+.scroller{overflow-x:auto;padding-bottom:.6rem;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+.dgrid{
+  display:grid;
+  grid-auto-rows:1.65rem;
+  align-items:center;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:.9rem;
+  padding:1rem 1.1rem;
+  min-width:min-content;
+}
+.dgrid .lab{
+  grid-column:1;color:var(--dim);font-size:.7rem;text-align:right;
+  padding-right:.75rem;white-space:nowrap;
+  font-family:"IBM Plex Sans",sans-serif;
+}
+.dgrid .c{text-align:center;color:var(--ink);position:relative}
+.dgrid .c.zero{color:var(--dim)}
+.dgrid .c.data{color:var(--data)}
+.dgrid .c.crc{color:var(--crc)}
+.dgrid .c.gen{color:#9CC2CE}
+.dgrid .c.carry{color:var(--dim)}
+.dgrid .c.line{border-top:1px solid var(--rule)}
+.dgrid .c.hot{background:rgba(240,180,41,.13);border-radius:2px}
+.dgrid .c.err{color:var(--err)}
+.dgrid .c.res{color:var(--crc);font-weight:600}
+.dgrid .bar{border-left:1px solid var(--rule)}
+.caret{color:var(--data);font-size:.7rem}
+
+.note{
+  margin-top:1rem;padding:.85rem 1rem;border-radius:8px;
+  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--data);
+  font-size:.88rem;
+}
+.note b{color:var(--data);font-weight:600}
+.note .mono{color:var(--ink)}
+
+/* ---------- Canal ---------- */
+.bitline{display:flex;flex-wrap:wrap;gap:3px;margin:.9rem 0 1.2rem}
+.bitbtn{
+  font-family:"IBM Plex Mono",monospace;font-size:1rem;
+  width:1.7rem;height:2.1rem;border-radius:4px;cursor:pointer;
+  background:var(--panel-2);border:1px solid transparent;color:var(--dim);
+  display:grid;place-items:center;padding:0;
+}
+.bitbtn.d{color:var(--data)}
+.bitbtn.c{color:var(--crc)}
+.bitbtn.flip{background:rgba(255,107,99,.15);border-color:var(--err);color:var(--err)}
+.bitbtn:hover{border-color:var(--dim)}
+.idx{font-size:.6rem;color:var(--dim);text-align:center}
+
+.verdict{
+  margin-top:1.2rem;padding:1rem 1.15rem;border-radius:8px;font-size:.95rem;
+  border:1px solid var(--rule);background:var(--panel);
+}
+.verdict.good{border-left:3px solid var(--ok)}
+.verdict.good strong{color:var(--ok)}
+.verdict.bad{border-left:3px solid var(--err)}
+.verdict.bad strong{color:var(--err)}
+.verdict.miss{border-left:3px solid var(--data)}
+.verdict.miss strong{color:var(--data)}
+.verdict p{margin:.45rem 0 0;color:var(--muted);font-size:.86rem}
+
+/* ---------- Teoría ---------- */
+.theory{max-width:74ch}
+.theory h3{font-size:1.02rem;margin:1.8rem 0 .5rem;color:var(--ink)}
+.theory h3:first-child{margin-top:0}
+.theory p{margin:.6rem 0;color:#C6D8DF}
+.theory ul{margin:.6rem 0;padding-left:1.1rem;color:#C6D8DF}
+.theory li{margin:.3rem 0}
+.theory code{font-family:"IBM Plex Mono",monospace;font-size:.88em;color:var(--crc);background:#0B171D;padding:.08em .35em;border-radius:3px}
+.theory .cite{font-size:.8rem;color:var(--dim);border-top:1px solid var(--rule-soft);padding-top:.8rem;margin-top:2rem}
+table.poly{width:100%;border-collapse:collapse;margin:.9rem 0;font-size:.85rem}
+table.poly th{text-align:left;color:var(--muted);font-weight:500;padding:.4rem .6rem;border-bottom:1px solid var(--rule)}
+table.poly td{padding:.4rem .6rem;border-bottom:1px solid var(--rule-soft)}
+table.poly td:last-child{font-family:"IBM Plex Mono",monospace;font-size:.82rem;color:var(--dim)}
+
+footer{border-top:1px solid var(--rule);padding:1.4rem 1.5rem 2.5rem;color:var(--dim);font-size:.8rem}
+footer .fin{max-width:1220px;margin:0 auto}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <h1>Comprobación de redundancia cíclica</h1>
+    <p class="sub">Escribe un mensaje y un polinomio generador. La trama que saldría al medio físico se arma abajo, bit por bit, con la división módulo 2 completa a la vista.</p>
+    <div class="frame-strip mono" id="heroStrip" aria-label="Trama transmitida"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--data)"></i> bits del mensaje &mdash; M(x)</span>
+      <span><i class="swatch" style="background:var(--crc)"></i> bits de redundancia &mdash; R(x)</span>
+      <span id="heroSize"></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ====================== CONTROLES ====================== -->
+  <aside>
+    <div class="box">
+      <h2>Mensaje</h2>
+      <div class="seg" role="group" aria-label="Formato de entrada">
+        <button id="modeBits" aria-pressed="true">Bits</button>
+        <button id="modeText" aria-pressed="false">Texto</button>
+      </div>
+      <div class="field" id="fieldBits">
+        <label for="msgBits">Cadena binaria M</label>
+        <input type="text" id="msgBits" value="1101011011" spellcheck="false" autocomplete="off" inputmode="numeric">
+        <div class="hint">Solo 0 y 1. Máximo 128 bits.</div>
+      </div>
+      <div class="field" id="fieldText" hidden>
+        <label for="msgText">Texto (se codifica en UTF-8)</label>
+        <input type="text" id="msgText" value="UFPS" spellcheck="false" autocomplete="off">
+        <div class="hint">Cada carácter se convierte a sus bytes.</div>
+      </div>
+      <div class="warn" id="msgWarn"></div>
+    </div>
+
+    <div class="box">
+      <h2>Polinomio generador</h2>
+      <div class="field">
+        <label for="genPreset">Estándar</label>
+        <select id="genPreset"></select>
+      </div>
+      <div class="field">
+        <label for="genBits">Cadena binaria G</label>
+        <input type="text" id="genBits" value="10011" spellcheck="false" autocomplete="off" inputmode="numeric">
+        <div class="hint">El primer y el último bit deben ser 1.</div>
+      </div>
+      <div class="warn" id="genWarn"></div>
+    </div>
+
+    <div class="box">
+      <h2>Trama transmitida</h2>
+      <div class="field">
+        <input type="text" id="txOut" readonly aria-label="Trama T">
+      </div>
+      <div class="row" style="margin-top:.7rem">
+        <button class="act" id="copyTx">Copiar trama</button>
+        <button class="act" id="resetAll">Reiniciar</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ====================== ESCENARIO ====================== -->
+  <main>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-tx" aria-selected="true" aria-controls="p-tx">Emisor</button>
+      <button role="tab" id="tab-ch" aria-selected="false" aria-controls="p-ch">Canal</button>
+      <button role="tab" id="tab-rx" aria-selected="false" aria-controls="p-rx">Receptor</button>
+      <button role="tab" id="tab-th" aria-selected="false" aria-controls="p-th">Teoría</button>
+    </div>
+
+    <!-- EMISOR -->
+    <section class="panel" id="p-tx" role="tabpanel" aria-labelledby="tab-tx">
+      <div class="algebra" id="algTx"></div>
+      <div class="player">
+        <button class="act" data-p="tx" data-a="first">⏮</button>
+        <button class="act" data-p="tx" data-a="prev">Anterior</button>
+        <button class="act primary" data-p="tx" data-a="next">Siguiente</button>
+        <button class="act" data-p="tx" data-a="play">Reproducir</button>
+        <button class="act" data-p="tx" data-a="last">Ver completo</button>
+        <span class="count" id="cntTx"></span>
+      </div>
+      <div class="track"><i id="barTx"></i></div>
+      <div class="scroller"><div class="dgrid" id="gridTx"></div></div>
+      <div class="note" id="noteTx"></div>
+    </section>
+
+    <!-- CANAL -->
+    <section class="panel" id="p-ch" role="tabpanel" aria-labelledby="tab-ch" hidden>
+      <div class="algebra" id="algCh"></div>
+      <p style="color:var(--muted);font-size:.88rem;margin:0">Haz clic en cualquier bit para invertirlo y simular el ruido del medio.</p>
+      <div class="bitline" id="chBits"></div>
+      <div class="row">
+        <button class="act" id="err1">Invertir 1 bit al azar</button>
+        <button class="act" id="err2">Invertir 2 bits al azar</button>
+        <button class="act" id="errBurst">Ráfaga aleatoria</button>
+        <button class="act" id="errClear">Limpiar errores</button>
+      </div>
+      <div class="note" id="noteCh"></div>
+    </section>
+
+    <!-- RECEPTOR -->
+    <section class="panel" id="p-rx" role="tabpanel" aria-labelledby="tab-rx" hidden>
+      <div class="algebra" id="algRx"></div>
+      <div class="player">
+        <button class="act" data-p="rx" data-a="first">⏮</button>
+        <button class="act" data-p="rx" data-a="prev">Anterior</button>
+        <button class="act primary" data-p="rx" data-a="next">Siguiente</button>
+        <button class="act" data-p="rx" data-a="play">Reproducir</button>
+        <button class="act" data-p="rx" data-a="last">Ver completo</button>
+        <span class="count" id="cntRx"></span>
+      </div>
+      <div class="track"><i id="barRx"></i></div>
+      <div class="scroller"><div class="dgrid" id="gridRx"></div></div>
+      <div class="verdict" id="verdict"></div>
+    </section>
+
+    <!-- TEORÍA -->
+    <section class="panel theory" id="p-th" role="tabpanel" aria-labelledby="tab-th" hidden>
+      <h3>Los bits como polinomios</h3>
+      <p>Un código polinómico trata una cadena de <em>k</em> bits como la lista de coeficientes de un polinomio de grado <em>k</em>−1, con coeficientes que solo valen 0 o 1. El bit más a la izquierda acompaña a <code>x^(k−1)</code> y el de más a la derecha al término independiente. Así, <code>110001</code> equivale a x<sup>5</sup>&nbsp;+&nbsp;x<sup>4</sup>&nbsp;+&nbsp;1.</p>
+
+      <h3>Aritmética módulo 2</h3>
+      <p>Toda la operación se hace en aritmética polinómica módulo 2: no hay acarreos ni préstamos. La suma y la resta terminan siendo la misma operación, el XOR bit a bit. Restar el generador equivale entonces a aplicarle un XOR, y esa es la única operación que ejecuta el algoritmo.</p>
+      <p>La división larga funciona igual que la decimal, salvo que en cada paso solo se pregunta si el bit líder del resto parcial es 1. Si lo es, el cociente recibe un 1 y se aplica XOR con el generador alineado en esa posición; si es 0, el cociente recibe un 0 y se baja el siguiente bit.</p>
+
+      <h3>El procedimiento</h3>
+      <p>Emisor y receptor acuerdan de antemano un polinomio generador <code>G(x)</code> de grado <em>r</em>, cuyo bit de mayor y de menor orden deben ser 1. Con el mensaje <code>M(x)</code> de <em>k</em> bits:</p>
+      <ul>
+        <li>Se añaden <em>r</em> ceros al final del mensaje, lo que equivale a formar <code>x^r · M(x)</code>.</li>
+        <li>Se divide <code>x^r · M(x)</code> entre <code>G(x)</code> en módulo 2. El cociente se descarta; lo único que interesa es el residuo <code>R(x)</code>, de <em>r</em> bits.</li>
+        <li>Se resta el residuo a <code>x^r · M(x)</code>. Como los <em>r</em> últimos bits son ceros, restar equivale simplemente a escribir el residuo en ese hueco. El resultado es la trama <code>T(x)</code>, de <em>k</em>+<em>r</em> bits.</li>
+      </ul>
+      <p>Por construcción <code>T(x)</code> es un múltiplo exacto de <code>G(x)</code>. El receptor divide lo que recibe entre el mismo <code>G(x)</code>: si el residuo es cero acepta la trama, y si no es cero sabe que hubo un error en el trayecto.</p>
+
+      <h3>Qué errores se detectan</h3>
+      <p>Si la trama recibida es <code>T(x) + E(x)</code>, donde cada 1 en <code>E(x)</code> marca un bit invertido, el receptor calcula el residuo de <code>[T(x) + E(x)] / G(x)</code>. Como <code>T(x)/G(x)</code> ya da cero, el resultado depende solo de <code>E(x)</code>. Los errores que pasan inadvertidos son exactamente aquellos en los que <code>E(x)</code> resulta ser múltiplo de <code>G(x)</code>, y eligiendo bien el generador esos casos se vuelven muy improbables.</p>
+      <ul>
+        <li><strong>Un solo bit alterado.</strong> <code>E(x) = x^i</code>. Si <code>G(x)</code> tiene dos o más términos nunca lo divide, así que siempre se detecta.</li>
+        <li><strong>Dos bits aislados.</strong> <code>E(x) = x^i(x^j + 1)</code>. Se detectan si <code>G(x)</code> no divide a <code>x^j + 1</code> para ninguna distancia <em>j</em> dentro de la longitud de la trama.</li>
+        <li><strong>Número impar de bits alterados.</strong> Basta con que <code>G(x)</code> contenga el factor <code>x + 1</code>: ningún polinomio con un número impar de términos es divisible entre él.</li>
+        <li><strong>Ráfagas.</strong> Cualquier ráfaga de longitud menor o igual a <em>r</em> se detecta siempre. Para ráfagas más largas la probabilidad de que pase desapercibida es aproximadamente 1/2<sup>r</sup>.</li>
+      </ul>
+
+      <h3>Generadores estandarizados</h3>
+      <table class="poly">
+        <thead><tr><th>Nombre</th><th>Polinomio</th><th>Bits</th></tr></thead>
+        <tbody id="polyTable"></tbody>
+      </table>
+      <p>El de 32 bits del estándar IEEE 802 es el que usa Ethernet en el campo de secuencia de verificación de trama. Su cálculo se implementa en hardware con un registro de desplazamiento y compuertas XOR: el circuito reproduce exactamente la misma división que ves en la pestaña del emisor.</p>
+
+      <p class="cite">Contenido basado en la sección de códigos de detección de errores del capítulo sobre la capa de enlace de datos de <em>Redes de computadoras</em>, de Andrew S. Tanenbaum (redactado con palabras propias). El ejemplo precargado —trama 1101011011 con generador 10011— es el que el libro usa para ilustrar el método.</p>
+    </section>
+  </main>
+</div>
+
+<footer><div class="fin">Simulador didáctico de CRC · división módulo 2 sobre GF(2)</div></footer>
+
+<script>
+"use strict";
+
+/* =======================================================================
+   1. NÚCLEO DEL ALGORITMO
+   ===================================================================== */
+
+const GENERATORS = [
+  { name: "Ejemplo del libro — x⁴ + x + 1",        bits: "10011" },
+  { name: "CRC-12",                                 bits: "1100000001111" },
+  { name: "CRC-16",                                 bits: "11000000000000101" },
+  { name: "CRC-CCITT",                              bits: "10001000000100001" },
+  { name: "CRC-32 (IEEE 802 / Ethernet)",           bits: "100000100110000010001110110110111" },
+];
+
+const toBits   = s => s.split("").map(Number);
+const toStr    = b => b.join("");
+const isZero   = b => b.every(v => v === 0);
+
+/**
+ * División larga módulo 2. Devuelve la traza completa para poder animarla.
+ * En cada posición i se mira el bit líder del resto parcial:
+ *   1 -> el cociente recibe 1 y se aplica XOR con G alineado en i
+ *   0 -> el cociente recibe 0 y se baja el siguiente bit
+ */
+function divide(dividend, gen) {
+  const r    = gen.length - 1;
+  const rem  = dividend.slice();
+  const n    = dividend.length - r;   // número de bits de cociente
+  const quotient = [];
+  const steps = [{ kind: "init", pos: -1, after: rem.slice(), q: null }];
+
+  for (let i = 0; i < n; i++) {
+    if (rem[i] === 1) {
+      quotient.push(1);
+      for (let j = 0; j < gen.length; j++) rem[i + j] ^= gen[j];
+      steps.push({ kind: "xor", pos: i, after: rem.slice(), q: 1 });
+    } else {
+      quotient.push(0);
+      steps.push({ kind: "skip", pos: i, after: rem.slice(), q: 0 });
+    }
+  }
+  steps.push({ kind: "done", pos: n, after: rem.slice(), q: null });
+
+  return {
+    quotient,
+    remainder: rem.slice(dividend.length - r),
+    steps,
+  };
+}
+
+/** Cadena de bits -> polinomio con superíndices HTML. */
+function poly(bits) {
+  const n = bits.length, terms = [];
+  for (let i = 0; i < n; i++) {
+    if (bits[i] !== 1) continue;
+    const e = n - 1 - i;
+    terms.push(e === 0 ? "1" : e === 1 ? "x" : `x<sup>${e}</sup>`);
+  }
+  return terms.length ? terms.join(" + ") : "0";
+}
+
+function textToBits(txt) {
+  const bytes = new TextEncoder().encode(txt);
+  const out = [];
+  bytes.forEach(b => { for (let i = 7; i >= 0; i--) out.push((b >> i) & 1); });
+  return out;
+}
+
+/* =======================================================================
+   2. ESTADO
+   ===================================================================== */
+
+const state = {
+  inputMode: "bits",
+  msg: toBits("1101011011"),
+  gen: toBits("10011"),
+  tx:  [],            // trama correcta
+  rx:  [],            // trama tal como llega (con errores inyectados)
+  cursor: { tx: 0, rx: 0 },
+  timer:  { tx: null, rx: null },
+};
+
+const $ = id => document.getElementById(id);
+
+/* =======================================================================
+   3. RENDERIZADO DE LA REJILLA DE DIVISIÓN
+   ===================================================================== */
+
+/**
+ * Dibuja la división larga acumulada hasta el paso `cursor`.
+ * Columna 1 = etiquetas; las columnas 2..N+1 son las posiciones de bit.
+ */
+function renderGrid(el, dividend, gen, result, cursor, opts) {
+  const N = dividend.length;
+  const r = gen.length - 1;
+  const msgLen = opts.msgLen;
+  el.innerHTML = "";
+  el.style.gridTemplateColumns = `auto repeat(${N}, var(--cell))`;
+
+  let row = 1;
+  const put = (col, txt, cls) => {
+    const d = document.createElement("div");
+    d.className = "c " + (cls || "");
+    d.style.gridRow = row;
+    d.style.gridColumn = col + 2;   // +2: la columna 1 es la de etiquetas
+    d.textContent = txt;
+    el.appendChild(d);
+  };
+  const label = txt => {
+    const d = document.createElement("div");
+    d.className = "lab";
+    d.style.gridRow = row;
+    d.textContent = txt;
+    el.appendChild(d);
+  };
+
+  const upTo = result.steps.slice(0, cursor + 1);
+  const active = result.steps[cursor];
+
+  // --- fila del cociente ---
+  label("cociente");
+  let qi = 0;
+  for (const s of upTo) {
+    if (s.q === null) continue;
+    put(qi, String(s.q), "gen");
+    qi++;
+  }
+  row++;
+
+  // --- fila del dividendo ---
+  label(opts.dividendLabel);
+  for (let i = 0; i < N; i++) {
+    let cls = "";
+    if (opts.errorMask && opts.errorMask[i]) cls = "err";
+    else if (i < msgLen) cls = dividend[i] ? "data" : "zero";
+    else cls = opts.tailClass || (dividend[i] ? "crc" : "zero");
+    if (active && active.pos >= 0 && i >= active.pos && i <= active.pos + r) cls += " hot";
+    put(i, String(dividend[i]), cls);
+  }
+  row++;
+
+  // --- una pareja de filas por cada XOR ejecutado ---
+  for (let k = 0; k < upTo.length; k++) {
+    const s = upTo[k];
+    if (s.kind !== "xor") continue;
+
+    label("XOR G(x)");
+    for (let j = 0; j <= r; j++) put(s.pos + j, String(gen[j]), "gen");
+    row++;
+
+    label("resto");
+    for (let i = s.pos; i < N; i++) {
+      const computed = i <= s.pos + r;
+      let cls = computed ? "line" : "carry";
+      if (i > s.pos + r) cls += (i < msgLen ? " data" : " crc");
+      if (active === s && computed) cls += " hot";
+      put(i, String(s.after[i]), cls);
+    }
+    row++;
+  }
+
+  // --- residuo final ---
+  if (cursor >= result.steps.length - 1) {
+    label("residuo R(x)");
+    for (let i = N - r; i < N; i++) put(i, String(result.steps.at(-1).after[i]), "res");
+    row++;
+  }
+}
+
+/* =======================================================================
+   4. TEXTOS EXPLICATIVOS DE CADA PASO
+   ===================================================================== */
+
+function stepNote(result, cursor, gen, ctx) {
+  const s = result.steps[cursor];
+  const r = gen.length - 1;
+  const G = toStr(gen);
+
+  if (s.kind === "init") {
+    return ctx === "tx"
+      ? `<b>Punto de partida.</b> Se añaden <span class="mono">${r}</span> ceros al mensaje para formar <span class="mono">x<sup>${r}</sup> · M(x)</span>. Ese es el dividendo.`
+      : `<b>Punto de partida.</b> El receptor toma la trama completa que llegó y la divide entre el mismo <span class="mono">G(x) = ${G}</span>.`;
+  }
+  if (s.kind === "skip") {
+    return `<b>Posición ${s.pos}.</b> El bit líder del resto parcial es <span class="mono">0</span>, así que el cociente recibe un <span class="mono">0</span> y se baja el siguiente bit sin restar nada.`;
+  }
+  if (s.kind === "xor") {
+    const prev = result.steps[cursor - 1].after;
+    const a = prev.slice(s.pos, s.pos + r + 1).join("");
+    const b = s.after.slice(s.pos, s.pos + r + 1).join("");
+    return `<b>Posición ${s.pos}.</b> El bit líder es <span class="mono">1</span>: el cociente recibe un <span class="mono">1</span> y se resta el generador alineado ahí. En módulo 2 restar es aplicar XOR &mdash; <span class="mono">${a} ⊕ ${G} = ${b}</span>.`;
+  }
+  // done
+  const R = result.remainder.join("");
+  if (ctx === "tx") {
+    return `<b>Residuo obtenido.</b> Quedan los últimos <span class="mono">${r}</span> bits: <span class="mono">R(x) = ${R}</span>. Al restarlo de <span class="mono">x<sup>${r}</sup> · M(x)</span> —es decir, al escribirlo sobre los ceros añadidos— se obtiene la trama <span class="mono">T(x)</span>, que ya es múltiplo exacto de <span class="mono">G(x)</span>.`;
+  }
+  return isZero(result.remainder)
+    ? `<b>Residuo cero.</b> <span class="mono">${R}</span> — la trama recibida es múltiplo exacto de <span class="mono">G(x)</span>.`
+    : `<b>Residuo distinto de cero.</b> <span class="mono">${R}</span> — la división no es exacta, luego lo que llegó no es la trama que se envió.`;
+}
+
+/* =======================================================================
+   5. PINTADO GENERAL
+   ===================================================================== */
+
+function renderHero() {
+  const strip = $("heroStrip");
+  strip.innerHTML = "";
+  const k = state.msg.length;
+  state.tx.forEach((b, i) => {
+    const d = document.createElement("span");
+    d.className = "bit " + (i < k ? "d" : "c");
+    d.textContent = b;
+    strip.appendChild(d);
+  });
+  const r = state.gen.length - 1;
+  $("heroSize").textContent = `${k} bits de datos + ${r} de redundancia = ${k + r} bits en el aire`;
+  $("txOut").value = toStr(state.tx);
+}
+
+function algebraLines(el, rows) {
+  el.innerHTML = "";
+  for (const [k, v, cls] of rows) {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = `<div class="k">${k}</div><div class="v ${cls || ""}">${v}</div>`;
+    el.appendChild(line);
+  }
+}
+
+function renderTx() {
+  const r = state.gen.length - 1;
+  const dividend = state.msg.concat(new Array(r).fill(0));
+  const res = divide(dividend, state.gen);
+  const cur = Math.min(state.cursor.tx, res.steps.length - 1);
+
+  algebraLines($("algTx"), [
+    [`Mensaje M(x) · ${state.msg.length} bits`, poly(state.msg), "data"],
+    [`Generador G(x) · grado ${r}`, poly(state.gen)],
+    [`Dividendo x<sup>${r}</sup>·M(x)`, toStr(dividend)],
+    [`Residuo R(x) · ${r} bits`, `${toStr(res.remainder)} &nbsp;=&nbsp; ${poly(res.remainder)}`, "crc"],
+    [`Trama T(x) = x<sup>${r}</sup>·M(x) − R(x)`, toStr(state.tx)],
+  ]);
+
+  renderGrid($("gridTx"), dividend, state.gen, res, cur, {
+    msgLen: state.msg.length,
+    dividendLabel: `x^${r}·M(x)`,
+  });
+
+  $("noteTx").innerHTML = stepNote(res, cur, state.gen, "tx");
+  $("cntTx").textContent = `paso ${cur} de ${res.steps.length - 1}`;
+  $("barTx").style.width = (cur / (res.steps.length - 1) * 100) + "%";
+}
+
+function renderChannel() {
+  const k = state.msg.length;
+  const line = $("chBits");
+  line.innerHTML = "";
+  state.rx.forEach((b, i) => {
+    const btn = document.createElement("button");
+    btn.className = "bitbtn " + (state.tx[i] !== b ? "flip" : (i < k ? "d" : "c"));
+    btn.textContent = b;
+    btn.title = `Posición ${i}`;
+    btn.onclick = () => { state.rx[i] ^= 1; renderChannel(); renderRx(); };
+    line.appendChild(btn);
+  });
+
+  const err = state.tx.map((b, i) => b ^ state.rx[i]);
+  const nErr = err.reduce((a, b) => a + b, 0);
+  const first = err.indexOf(1), last = err.lastIndexOf(1);
+  const burst = nErr ? last - first + 1 : 0;
+  const r = state.gen.length - 1;
+
+  algebraLines($("algCh"), [
+    ["Trama enviada T(x)", toStr(state.tx)],
+    ["Trama recibida T(x)+E(x)", toStr(state.rx)],
+    ["Patrón de error E(x)", nErr ? toStr(err) : "sin errores"],
+  ]);
+
+  if (!nErr) {
+    $("noteCh").innerHTML = `<b>Canal limpio.</b> Cada 1 que marques en el patrón de error <span class="mono">E(x)</span> representa un bit que el ruido invirtió. Con <span class="mono">E(x) = 0</span> el receptor obtendrá residuo cero.`;
+  } else {
+    const detected = !isZero(divide(state.rx.slice(), state.gen).remainder);
+    $("noteCh").innerHTML =
+      `<b>${nErr} bit${nErr > 1 ? "s" : ""} invertido${nErr > 1 ? "s" : ""}.</b> ` +
+      `La ráfaga abarca desde la posición ${first} hasta la ${last}, es decir <span class="mono">${burst}</span> bits de extensión. ` +
+      (burst <= r
+        ? `Como no supera el grado del generador (<span class="mono">${r}</span>), la teoría garantiza que se detecta.`
+        : `Supera el grado del generador (<span class="mono">${r}</span>), así que la detección ya no está garantizada por construcción.`) +
+      (detected ? "" : ` En este caso concreto <span class="mono">E(x)</span> resultó ser múltiplo de <span class="mono">G(x)</span> y el error pasa inadvertido.`);
+  }
+}
+
+function renderRx() {
+  const r = state.gen.length - 1;
+  const res = divide(state.rx.slice(), state.gen);
+  const cur = Math.min(state.cursor.rx, res.steps.length - 1);
+  const clean = isZero(res.remainder);
+  const corrupted = state.rx.some((b, i) => b !== state.tx[i]);
+  const errMask = state.rx.map((b, i) => b ^ state.tx[i]);
+
+  algebraLines($("algRx"), [
+    ["Trama recibida", toStr(state.rx)],
+    [`Generador G(x) · grado ${r}`, poly(state.gen)],
+    ["Residuo del receptor", toStr(res.remainder), clean ? "" : "crc"],
+  ]);
+
+  renderGrid($("gridRx"), state.rx.slice(), state.gen, res, cur, {
+    msgLen: state.msg.length,
+    dividendLabel: "recibido",
+    errorMask: errMask,
+  });
+
+  $("cntRx").textContent = `paso ${cur} de ${res.steps.length - 1}`;
+  $("barRx").style.width = (cur / (res.steps.length - 1) * 100) + "%";
+
+  const v = $("verdict");
+  if (clean && !corrupted) {
+    v.className = "verdict good";
+    v.innerHTML = `<strong>Trama aceptada.</strong> El residuo es cero y no hubo alteraciones.
+      <p>El receptor no necesita conocer el residuo original: le basta con que la división entre G(x) sea exacta.</p>`;
+  } else if (!clean) {
+    v.className = "verdict bad";
+    v.innerHTML = `<strong>Error detectado.</strong> El residuo es <span class="mono">${toStr(res.remainder)}</span>, distinto de cero.
+      <p>La trama se descarta. El CRC señala que algo cambió, pero no dice qué bit ni permite corregirlo.</p>`;
+  } else {
+    v.className = "verdict miss";
+    v.innerHTML = `<strong>Error no detectado.</strong> Hubo bits alterados y aun así el residuo es cero.
+      <p>El patrón de error E(x) resultó ser múltiplo de G(x). Es el único caso que el método deja pasar, y elegir un buen generador es justamente lo que lo vuelve improbable.</p>`;
+  }
+}
+
+function recompute(keepErrors) {
+  const r = state.gen.length - 1;
+  const dividend = state.msg.concat(new Array(r).fill(0));
+  const res = divide(dividend, state.gen);
+  state.tx = state.msg.concat(res.remainder);
+  if (!keepErrors || state.rx.length !== state.tx.length) state.rx = state.tx.slice();
+  renderHero();
+  renderTx();
+  renderChannel();
+  renderRx();
+}
+
+
+/* =======================================================================
+   6. ENTRADA DEL USUARIO
+   ===================================================================== */
+
+function readInputs() {
+  let ok = true;
+
+  // mensaje
+  let msg;
+  if (state.inputMode === "bits") {
+    const raw = $("msgBits").value.replace(/[^01]/g, "");
+    msg = raw ? toBits(raw) : [];
+  } else {
+    msg = textToBits($("msgText").value);
+  }
+  const mw = $("msgWarn");
+  if (msg.length === 0) { mw.textContent = "Escribe al menos un bit."; mw.classList.add("on"); ok = false; }
+  else if (msg.length > 128) { msg = msg.slice(0, 128); mw.textContent = "Recortado a 128 bits para que la división siga siendo legible."; mw.classList.add("on"); }
+  else mw.classList.remove("on");
+
+  // generador
+  const graw = $("genBits").value.replace(/[^01]/g, "");
+  const gen = graw ? toBits(graw) : [];
+  const gw = $("genWarn");
+  if (gen.length < 2)            { gw.textContent = "El generador necesita al menos 2 bits."; gw.classList.add("on"); ok = false; }
+  else if (gen[0] !== 1)         { gw.textContent = "El bit de mayor orden debe ser 1: si no, el grado real es menor."; gw.classList.add("on"); ok = false; }
+  else if (gen.at(-1) !== 1)     { gw.textContent = "El bit de menor orden debe ser 1, o el código no detecta desplazamientos."; gw.classList.add("on"); ok = false; }
+  else if (gen.length - 1 > msg.length + 32) { gw.textContent = "El generador es mucho más largo que el mensaje."; gw.classList.add("on"); }
+  else gw.classList.remove("on");
+
+  if (!ok) return false;
+  state.msg = msg;
+  state.gen = gen;
+  state.cursor.tx = 0;
+  state.cursor.rx = 0;
+  return true;
+}
+
+function apply(keepErrors) {
+  if (readInputs()) recompute(keepErrors);
+}
+
+/* ---- pestañas ---- */
+document.querySelectorAll('[role=tab]').forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll('[role=tab]').forEach(b => {
+      const on = b === btn;
+      b.setAttribute("aria-selected", on);
+      $(b.getAttribute("aria-controls")).hidden = !on;
+    });
+  });
+});
+
+/* ---- modo de entrada ---- */
+$("modeBits").onclick = () => {
+  state.inputMode = "bits";
+  $("modeBits").setAttribute("aria-pressed", "true");
+  $("modeText").setAttribute("aria-pressed", "false");
+  $("fieldBits").hidden = false; $("fieldText").hidden = true;
+  apply(false);
+};
+$("modeText").onclick = () => {
+  state.inputMode = "text";
+  $("modeBits").setAttribute("aria-pressed", "false");
+  $("modeText").setAttribute("aria-pressed", "true");
+  $("fieldBits").hidden = true; $("fieldText").hidden = false;
+  apply(false);
+};
+
+$("msgBits").addEventListener("input", () => apply(false));
+$("msgText").addEventListener("input", () => apply(false));
+$("genBits").addEventListener("input", () => { $("genPreset").value = ""; apply(false); });
+
+/* ---- generadores estándar ---- */
+const sel = $("genPreset");
+sel.innerHTML = `<option value="">Personalizado</option>` +
+  GENERATORS.map(g => `<option value="${g.bits}">${g.name}</option>`).join("");
+sel.value = "10011";
+sel.onchange = () => { if (sel.value) { $("genBits").value = sel.value; apply(false); } };
+
+$("polyTable").innerHTML = GENERATORS.slice(1).map(g =>
+  `<tr><td>${g.name}</td><td>${poly(toBits(g.bits))}</td><td>${g.bits}</td></tr>`).join("");
+
+/* ---- reproductor de pasos ---- */
+function stepsOf(which) {
+  const r = state.gen.length - 1;
+  return which === "tx"
+    ? divide(state.msg.concat(new Array(r).fill(0)), state.gen).steps.length
+    : divide(state.rx.slice(), state.gen).steps.length;
+}
+function draw(which) { which === "tx" ? renderTx() : renderRx(); }
+
+document.querySelectorAll("[data-a]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const w = btn.dataset.p, a = btn.dataset.a, n = stepsOf(w) - 1;
+    clearInterval(state.timer[w]); state.timer[w] = null;
+    if (a === "first") state.cursor[w] = 0;
+    if (a === "prev")  state.cursor[w] = Math.max(0, state.cursor[w] - 1);
+    if (a === "next")  state.cursor[w] = Math.min(n, state.cursor[w] + 1);
+    if (a === "last")  state.cursor[w] = n;
+    if (a === "play") {
+      if (state.cursor[w] >= n) state.cursor[w] = 0;
+      state.timer[w] = setInterval(() => {
+        if (state.cursor[w] >= n) { clearInterval(state.timer[w]); state.timer[w] = null; return; }
+        state.cursor[w]++; draw(w);
+      }, 650);
+    }
+    draw(w);
+  });
+});
+
+document.addEventListener("keydown", e => {
+  const open = document.querySelector('[role=tab][aria-selected=true]').id;
+  const w = open === "tab-tx" ? "tx" : open === "tab-rx" ? "rx" : null;
+  if (!w) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  const n = stepsOf(w) - 1;
+  if (e.key === "ArrowRight") { state.cursor[w] = Math.min(n, state.cursor[w] + 1); draw(w); }
+  if (e.key === "ArrowLeft")  { state.cursor[w] = Math.max(0, state.cursor[w] - 1); draw(w); }
+});
+
+/* ---- inyección de errores ---- */
+const randInt = n => Math.floor(Math.random() * n);
+function flipRandom(count) {
+  const N = state.rx.length, picked = new Set();
+  while (picked.size < Math.min(count, N)) picked.add(randInt(N));
+  picked.forEach(i => state.rx[i] ^= 1);
+  state.cursor.rx = 0;
+  renderChannel(); renderRx();
+}
+$("err1").onclick = () => flipRandom(1);
+$("err2").onclick = () => flipRandom(2);
+$("errBurst").onclick = () => {
+  const N = state.rx.length;
+  const len = Math.max(2, Math.min(N, 2 + randInt(7)));
+  const start = randInt(N - len + 1);
+  state.rx[start] ^= 1;
+  state.rx[start + len - 1] ^= 1;
+  for (let i = start + 1; i < start + len - 1; i++) if (Math.random() < .5) state.rx[i] ^= 1;
+  state.cursor.rx = 0;
+  renderChannel(); renderRx();
+};
+$("errClear").onclick = () => { state.rx = state.tx.slice(); state.cursor.rx = 0; renderChannel(); renderRx(); };
+
+/* ---- utilidades ---- */
+$("copyTx").onclick = async () => {
+  try { await navigator.clipboard.writeText(toStr(state.tx)); $("copyTx").textContent = "Copiada"; }
+  catch { $("txOut").select(); $("copyTx").textContent = "Selecciónala"; }
+  setTimeout(() => $("copyTx").textContent = "Copiar trama", 1400);
+};
+$("resetAll").onclick = () => {
+  $("msgBits").value = "1101011011";
+  $("genBits").value = "10011";
+  sel.value = "10011";
+  state.inputMode = "bits";
+  $("modeBits").click();
+};
+
+/* ---- arranque ---- */
+recompute(false);
+</script>
+</body>
+</html>
