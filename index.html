@@ -78,7 +78,8 @@ a{color:var(--focus)}
 
 /* ---------- Estructura ---------- */
 .wrap{max-width:1220px;margin:0 auto;padding:1.5rem;display:grid;gap:1.5rem;grid-template-columns:300px minmax(0,1fr)}
-@media (max-width:900px){.wrap{grid-template-columns:1fr;padding:1rem}}
+main,aside{min-width:0}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);padding:1rem}}
 
 aside{align-self:start;position:sticky;top:1rem}
 @media (max-width:900px){aside{position:static}}
@@ -113,15 +114,37 @@ button.act:disabled{opacity:.4;cursor:default}
 button.act.primary{background:#1F4652;border-color:#2F6172}
 .row{display:flex;gap:.5rem;flex-wrap:wrap}
 
-/* ---------- Pestañas ---------- */
-.tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--rule);margin-bottom:1.2rem;overflow-x:auto}
-.tabs button{
-  background:transparent;border:0;border-bottom:2px solid transparent;
-  color:var(--muted);padding:.6rem .85rem;font-size:.9rem;cursor:pointer;
-  font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;white-space:nowrap;
+/* ---------- Etapas ---------- */
+.stage{margin-bottom:2.8rem;scroll-margin-top:1rem}
+.stage-h{display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--rule);padding-bottom:.6rem;margin-bottom:1.2rem}
+.stage-h .num{
+  font-family:"IBM Plex Mono",monospace;font-size:.8rem;font-weight:600;
+  color:var(--bg);background:var(--data);width:1.55rem;height:1.55rem;
+  border-radius:50%;display:grid;place-items:center;flex:none;
 }
-.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--data)}
-.panel[hidden]{display:none}
+.stage-h h2{font-size:1.18rem}
+.stage-h .cap{color:var(--muted);font-size:.82rem;margin-left:auto;text-align:right}
+@media (max-width:620px){.stage-h{flex-wrap:wrap}.stage-h .cap{margin-left:0;text-align:left;width:100%;margin-top:.3rem}}
+
+/* ---------- Marcador de resultado ---------- */
+.result{
+  display:flex;align-items:center;gap:1.3rem;flex-wrap:wrap;
+  padding:1.05rem 1.2rem;border-radius:10px;margin-bottom:1.3rem;
+  background:var(--panel);border:1px solid var(--rule);
+}
+.result .lbl{font-size:.74rem;color:var(--muted);display:block;margin-bottom:.35rem}
+.result .big{font-family:"IBM Plex Mono",monospace;font-size:2.1rem;letter-spacing:.08em;line-height:1}
+.result .txt{flex:1;min-width:15rem}
+.result .txt strong{display:block;font-size:1rem;margin-bottom:.15rem}
+.result p{margin:0;color:var(--muted);font-size:.85rem}
+.result.good{border-left:3px solid var(--ok)}  .result.good .big,.result.good strong{color:var(--ok)}
+.result.bad{border-left:3px solid var(--err)}  .result.bad .big,.result.bad strong{color:var(--err)}
+.result.miss{border-left:3px solid var(--data)}.result.miss .big,.result.miss strong{color:var(--data)}
+
+.calltoact{
+  background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.3);
+  border-radius:8px;padding:.7rem .9rem;font-size:.87rem;color:#EBD9AE;margin-bottom:.4rem;
+}
 
 /* ---------- Resumen algebraico ---------- */
 .algebra{display:grid;gap:.05rem;margin-bottom:1.2rem}
@@ -142,7 +165,7 @@ button.act.primary{background:#1F4652;border-color:#2F6172}
 }
 .player .count{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--muted);margin-left:auto}
 .track{height:3px;background:var(--rule-soft);border-radius:2px;margin:.7rem 0 1rem;overflow:hidden}
-.track i{display:block;height:100%;background:var(--data);width:0}
+.track i{display:block;height:100%;background:rgba(240,180,41,.45);width:0}
 @media (prefers-reduced-motion:no-preference){.track i{transition:width .18s ease}}
 
 /* ---------- Rejilla de la división ---------- */
@@ -154,7 +177,7 @@ button.act.primary{background:#1F4652;border-color:#2F6172}
   font-family:"IBM Plex Mono",monospace;
   font-size:.9rem;
   padding:1rem 1.1rem;
-  min-width:min-content;
+  width:max-content;
 }
 .dgrid .lab{
   grid-column:1;color:var(--dim);font-size:.7rem;text-align:right;
@@ -187,13 +210,13 @@ button.act.primary{background:#1F4652;border-color:#2F6172}
 .bitbtn{
   font-family:"IBM Plex Mono",monospace;font-size:1rem;
   width:1.7rem;height:2.1rem;border-radius:4px;cursor:pointer;
-  background:var(--panel-2);border:1px solid transparent;color:var(--dim);
+  background:var(--panel-2);border:1px solid var(--rule);color:var(--dim);
   display:grid;place-items:center;padding:0;
 }
 .bitbtn.d{color:var(--data)}
 .bitbtn.c{color:var(--crc)}
 .bitbtn.flip{background:rgba(255,107,99,.15);border-color:var(--err);color:var(--err)}
-.bitbtn:hover{border-color:var(--dim)}
+.bitbtn:hover{border-color:var(--data);color:var(--ink)}
 .idx{font-size:.6rem;color:var(--dim);text-align:center}
 
 .verdict{
@@ -217,10 +240,10 @@ button.act.primary{background:#1F4652;border-color:#2F6172}
 .theory li{margin:.3rem 0}
 .theory code{font-family:"IBM Plex Mono",monospace;font-size:.88em;color:var(--crc);background:#0B171D;padding:.08em .35em;border-radius:3px}
 .theory .cite{font-size:.8rem;color:var(--dim);border-top:1px solid var(--rule-soft);padding-top:.8rem;margin-top:2rem}
-table.poly{width:100%;border-collapse:collapse;margin:.9rem 0;font-size:.85rem}
+table.poly{width:100%;border-collapse:collapse;margin:.9rem 0;font-size:.85rem;table-layout:fixed}
 table.poly th{text-align:left;color:var(--muted);font-weight:500;padding:.4rem .6rem;border-bottom:1px solid var(--rule)}
 table.poly td{padding:.4rem .6rem;border-bottom:1px solid var(--rule-soft)}
-table.poly td:last-child{font-family:"IBM Plex Mono",monospace;font-size:.82rem;color:var(--dim)}
+table.poly td:last-child{font-family:"IBM Plex Mono",monospace;font-size:.82rem;color:var(--dim);word-break:break-all}
 
 footer{border-top:1px solid var(--rule);padding:1.4rem 1.5rem 2.5rem;color:var(--dim);font-size:.8rem}
 footer .fin{max-width:1220px;margin:0 auto}
@@ -292,22 +315,21 @@ footer .fin{max-width:1220px;margin:0 auto}
 
   <!-- ====================== ESCENARIO ====================== -->
   <main>
-    <div class="tabs" role="tablist">
-      <button role="tab" id="tab-tx" aria-selected="true" aria-controls="p-tx">Emisor</button>
-      <button role="tab" id="tab-ch" aria-selected="false" aria-controls="p-ch">Canal</button>
-      <button role="tab" id="tab-rx" aria-selected="false" aria-controls="p-rx">Receptor</button>
-      <button role="tab" id="tab-th" aria-selected="false" aria-controls="p-th">Teoría</button>
-    </div>
 
-    <!-- EMISOR -->
-    <section class="panel" id="p-tx" role="tabpanel" aria-labelledby="tab-tx">
+    <!-- 1 · EMISOR -->
+    <section class="stage" id="s-tx">
+      <div class="stage-h">
+        <span class="num">1</span>
+        <h2>Emisor</h2>
+        <span class="cap">Calcula el residuo y arma la trama</span>
+      </div>
       <div class="algebra" id="algTx"></div>
       <div class="player">
-        <button class="act" data-p="tx" data-a="first">⏮</button>
+        <button class="act" data-p="tx" data-a="first">Al inicio</button>
         <button class="act" data-p="tx" data-a="prev">Anterior</button>
-        <button class="act primary" data-p="tx" data-a="next">Siguiente</button>
-        <button class="act" data-p="tx" data-a="play">Reproducir</button>
-        <button class="act" data-p="tx" data-a="last">Ver completo</button>
+        <button class="act" data-p="tx" data-a="next">Siguiente</button>
+        <button class="act primary" data-p="tx" data-a="play">Reproducir paso a paso</button>
+        <button class="act" data-p="tx" data-a="last">Ver completa</button>
         <span class="count" id="cntTx"></span>
       </div>
       <div class="track"><i id="barTx"></i></div>
@@ -315,38 +337,54 @@ footer .fin{max-width:1220px;margin:0 auto}
       <div class="note" id="noteTx"></div>
     </section>
 
-    <!-- CANAL -->
-    <section class="panel" id="p-ch" role="tabpanel" aria-labelledby="tab-ch" hidden>
-      <div class="algebra" id="algCh"></div>
-      <p style="color:var(--muted);font-size:.88rem;margin:0">Haz clic en cualquier bit para invertirlo y simular el ruido del medio.</p>
+    <!-- 2 · CANAL -->
+    <section class="stage" id="s-ch">
+      <div class="stage-h">
+        <span class="num">2</span>
+        <h2>Canal</h2>
+        <span class="cap">Aquí se introducen los errores</span>
+      </div>
+      <div class="calltoact">Haz clic sobre cualquier bit para invertirlo, o usa los botones de abajo. Cada bit que cambies se pinta en rojo y el receptor reacciona al instante.</div>
       <div class="bitline" id="chBits"></div>
       <div class="row">
-        <button class="act" id="err1">Invertir 1 bit al azar</button>
+        <button class="act primary" id="err1">Invertir 1 bit al azar</button>
         <button class="act" id="err2">Invertir 2 bits al azar</button>
         <button class="act" id="errBurst">Ráfaga aleatoria</button>
-        <button class="act" id="errClear">Limpiar errores</button>
+        <button class="act" id="errClear">Quitar todos los errores</button>
       </div>
+      <div class="algebra" id="algCh" style="margin-top:1.2rem"></div>
       <div class="note" id="noteCh"></div>
     </section>
 
-    <!-- RECEPTOR -->
-    <section class="panel" id="p-rx" role="tabpanel" aria-labelledby="tab-rx" hidden>
+    <!-- 3 · RECEPTOR -->
+    <section class="stage" id="s-rx">
+      <div class="stage-h">
+        <span class="num">3</span>
+        <h2>Receptor</h2>
+        <span class="cap">Divide lo recibido entre el mismo G(x)</span>
+      </div>
+      <div class="result" id="result"></div>
       <div class="algebra" id="algRx"></div>
       <div class="player">
-        <button class="act" data-p="rx" data-a="first">⏮</button>
+        <button class="act" data-p="rx" data-a="first">Al inicio</button>
         <button class="act" data-p="rx" data-a="prev">Anterior</button>
-        <button class="act primary" data-p="rx" data-a="next">Siguiente</button>
-        <button class="act" data-p="rx" data-a="play">Reproducir</button>
-        <button class="act" data-p="rx" data-a="last">Ver completo</button>
+        <button class="act" data-p="rx" data-a="next">Siguiente</button>
+        <button class="act primary" data-p="rx" data-a="play">Reproducir paso a paso</button>
+        <button class="act" data-p="rx" data-a="last">Ver completa</button>
         <span class="count" id="cntRx"></span>
       </div>
       <div class="track"><i id="barRx"></i></div>
       <div class="scroller"><div class="dgrid" id="gridRx"></div></div>
-      <div class="verdict" id="verdict"></div>
     </section>
 
-    <!-- TEORÍA -->
-    <section class="panel theory" id="p-th" role="tabpanel" aria-labelledby="tab-th" hidden>
+    <!-- 4 · TEORÍA -->
+    <section class="stage theory" id="s-th">
+      <div class="stage-h">
+        <span class="num">4</span>
+        <h2>Teoría</h2>
+        <span class="cap">Códigos polinómicos y detección de errores</span>
+      </div>
+
       <h3>Los bits como polinomios</h3>
       <p>Un código polinómico trata una cadena de <em>k</em> bits como la lista de coeficientes de un polinomio de grado <em>k</em>−1, con coeficientes que solo valen 0 o 1. El bit más a la izquierda acompaña a <code>x^(k−1)</code> y el de más a la derecha al término independiente. Así, <code>110001</code> equivale a x<sup>5</sup>&nbsp;+&nbsp;x<sup>4</sup>&nbsp;+&nbsp;1.</p>
 
@@ -465,7 +503,8 @@ const state = {
   gen: toBits("10011"),
   tx:  [],            // trama correcta
   rx:  [],            // trama tal como llega (con errores inyectados)
-  cursor: { tx: 0, rx: 0 },
+  cursor: { tx: Infinity, rx: Infinity },   // Infinity = mostrar la división completa
+  lastPlayer: "tx",
   timer:  { tx: null, rx: null },
 };
 
@@ -622,7 +661,8 @@ function renderTx() {
   const r = state.gen.length - 1;
   const dividend = state.msg.concat(new Array(r).fill(0));
   const res = divide(dividend, state.gen);
-  const cur = Math.min(state.cursor.tx, res.steps.length - 1);
+  state.cursor.tx = Math.min(state.cursor.tx, res.steps.length - 1);
+  const cur = state.cursor.tx;
 
   algebraLines($("algTx"), [
     [`Mensaje M(x) · ${state.msg.length} bits`, poly(state.msg), "data"],
@@ -651,7 +691,7 @@ function renderChannel() {
     btn.className = "bitbtn " + (state.tx[i] !== b ? "flip" : (i < k ? "d" : "c"));
     btn.textContent = b;
     btn.title = `Posición ${i}`;
-    btn.onclick = () => { state.rx[i] ^= 1; renderChannel(); renderRx(); };
+    btn.onclick = () => { state.rx[i] ^= 1; state.cursor.rx = Infinity; renderChannel(); renderRx(); };
     line.appendChild(btn);
   });
 
@@ -684,7 +724,8 @@ function renderChannel() {
 function renderRx() {
   const r = state.gen.length - 1;
   const res = divide(state.rx.slice(), state.gen);
-  const cur = Math.min(state.cursor.rx, res.steps.length - 1);
+  state.cursor.rx = Math.min(state.cursor.rx, res.steps.length - 1);
+  const cur = state.cursor.rx;
   const clean = isZero(res.remainder);
   const corrupted = state.rx.some((b, i) => b !== state.tx[i]);
   const errMask = state.rx.map((b, i) => b ^ state.tx[i]);
@@ -692,7 +733,6 @@ function renderRx() {
   algebraLines($("algRx"), [
     ["Trama recibida", toStr(state.rx)],
     [`Generador G(x) · grado ${r}`, poly(state.gen)],
-    ["Residuo del receptor", toStr(res.remainder), clean ? "" : "crc"],
   ]);
 
   renderGrid($("gridRx"), state.rx.slice(), state.gen, res, cur, {
@@ -704,19 +744,23 @@ function renderRx() {
   $("cntRx").textContent = `paso ${cur} de ${res.steps.length - 1}`;
   $("barRx").style.width = (cur / (res.steps.length - 1) * 100) + "%";
 
-  const v = $("verdict");
+  const v = $("result");
+  const R = toStr(res.remainder);
   if (clean && !corrupted) {
-    v.className = "verdict good";
-    v.innerHTML = `<strong>Trama aceptada.</strong> El residuo es cero y no hubo alteraciones.
-      <p>El receptor no necesita conocer el residuo original: le basta con que la división entre G(x) sea exacta.</p>`;
+    v.className = "result good";
+    v.innerHTML = `<div><span class="lbl">Residuo del receptor</span><span class="big">${R}</span></div>
+      <div class="txt"><strong>Trama aceptada</strong>
+      <p>La división es exacta, así que lo que llegó coincide con lo que se envió. El receptor nunca necesita conocer el residuo original: le basta con que el resto sea cero.</p></div>`;
   } else if (!clean) {
-    v.className = "verdict bad";
-    v.innerHTML = `<strong>Error detectado.</strong> El residuo es <span class="mono">${toStr(res.remainder)}</span>, distinto de cero.
-      <p>La trama se descarta. El CRC señala que algo cambió, pero no dice qué bit ni permite corregirlo.</p>`;
+    v.className = "result bad";
+    v.innerHTML = `<div><span class="lbl">Residuo del receptor</span><span class="big">${R}</span></div>
+      <div class="txt"><strong>Error detectado</strong>
+      <p>El resto no es cero, luego la trama se descarta. El CRC avisa de que algo cambió, pero no señala qué bit ni permite corregirlo.</p></div>`;
   } else {
-    v.className = "verdict miss";
-    v.innerHTML = `<strong>Error no detectado.</strong> Hubo bits alterados y aun así el residuo es cero.
-      <p>El patrón de error E(x) resultó ser múltiplo de G(x). Es el único caso que el método deja pasar, y elegir un buen generador es justamente lo que lo vuelve improbable.</p>`;
+    v.className = "result miss";
+    v.innerHTML = `<div><span class="lbl">Residuo del receptor</span><span class="big">${R}</span></div>
+      <div class="txt"><strong>Error no detectado</strong>
+      <p>Hubo bits alterados y aun así el resto es cero: E(x) resultó ser múltiplo de G(x). Es el único caso que el método deja pasar, y elegir un buen generador es lo que lo vuelve improbable.</p></div>`;
   }
 }
 
@@ -766,25 +810,14 @@ function readInputs() {
   if (!ok) return false;
   state.msg = msg;
   state.gen = gen;
-  state.cursor.tx = 0;
-  state.cursor.rx = 0;
+  state.cursor.tx = Infinity;
+  state.cursor.rx = Infinity;
   return true;
 }
 
 function apply(keepErrors) {
   if (readInputs()) recompute(keepErrors);
 }
-
-/* ---- pestañas ---- */
-document.querySelectorAll('[role=tab]').forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll('[role=tab]').forEach(b => {
-      const on = b === btn;
-      b.setAttribute("aria-selected", on);
-      $(b.getAttribute("aria-controls")).hidden = !on;
-    });
-  });
-});
 
 /* ---- modo de entrada ---- */
 $("modeBits").onclick = () => {
@@ -828,6 +861,7 @@ function draw(which) { which === "tx" ? renderTx() : renderRx(); }
 document.querySelectorAll("[data-a]").forEach(btn => {
   btn.addEventListener("click", () => {
     const w = btn.dataset.p, a = btn.dataset.a, n = stepsOf(w) - 1;
+    state.lastPlayer = w;
     clearInterval(state.timer[w]); state.timer[w] = null;
     if (a === "first") state.cursor[w] = 0;
     if (a === "prev")  state.cursor[w] = Math.max(0, state.cursor[w] - 1);
@@ -845,9 +879,7 @@ document.querySelectorAll("[data-a]").forEach(btn => {
 });
 
 document.addEventListener("keydown", e => {
-  const open = document.querySelector('[role=tab][aria-selected=true]').id;
-  const w = open === "tab-tx" ? "tx" : open === "tab-rx" ? "rx" : null;
-  if (!w) return;
+  const w = state.lastPlayer;
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
   const n = stepsOf(w) - 1;
   if (e.key === "ArrowRight") { state.cursor[w] = Math.min(n, state.cursor[w] + 1); draw(w); }
@@ -860,7 +892,7 @@ function flipRandom(count) {
   const N = state.rx.length, picked = new Set();
   while (picked.size < Math.min(count, N)) picked.add(randInt(N));
   picked.forEach(i => state.rx[i] ^= 1);
-  state.cursor.rx = 0;
+  state.cursor.rx = Infinity;
   renderChannel(); renderRx();
 }
 $("err1").onclick = () => flipRandom(1);
@@ -872,10 +904,10 @@ $("errBurst").onclick = () => {
   state.rx[start] ^= 1;
   state.rx[start + len - 1] ^= 1;
   for (let i = start + 1; i < start + len - 1; i++) if (Math.random() < .5) state.rx[i] ^= 1;
-  state.cursor.rx = 0;
+  state.cursor.rx = Infinity;
   renderChannel(); renderRx();
 };
-$("errClear").onclick = () => { state.rx = state.tx.slice(); state.cursor.rx = 0; renderChannel(); renderRx(); };
+$("errClear").onclick = () => { state.rx = state.tx.slice(); state.cursor.rx = Infinity; renderChannel(); renderRx(); };
 
 /* ---- utilidades ---- */
 $("copyTx").onclick = async () => {
@@ -896,3 +928,4 @@ recompute(false);
 </script>
 </body>
 </html>
+
